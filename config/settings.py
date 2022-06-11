@@ -28,11 +28,14 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework.authtoken'
 ]
 
 # project app
 PROJECT_APP = [
-    'core.apps.CoreConfig'
+    'core.apps.CoreConfig',
+    'gate.apps.GateConfig',
+    'users.apps.UsersConfig'
 ]
 
 
@@ -153,6 +156,9 @@ CORS_ALLOW_HEADERS = (
     'x-requested-with',
 )
 
+# User 테이블 정의
+AUTH_USER_MODEL = 'users.User'
+
 ## RESTFRAME WORK SETTING 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
@@ -161,11 +167,20 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
     ],
-    'DEFAULT_AUTHENTICATION_CLASSES' : [
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication'
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication'
     ],
-    'DEFAULT_PERMISSION_CLASSES' : [
+    'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ]
+}
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS' :{
+        'Bearer':{
+            'type':'apiKey',
+            'name':'Authorization',
+            'in':'header'
+        }
+    }
 }
