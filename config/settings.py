@@ -1,19 +1,15 @@
-import os, environ
+import os
 from pathlib import Path
 
 # 루트 경로
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 환경 설정 파일 읽기
-env = environ.Env()
-environ.Env.read_env(env_file=f"{BASE_DIR}/.env.dev")
-
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = os.environ.get('DEBUG')
 
 ALLOWED_HOSTS = [
     '*'
@@ -81,12 +77,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db/db.sqlite3',
+    'default':  {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get("MYSQL_NAME"),
+        'USER': os.environ.get("MYSQL_USER"),
+        'PASSWORD': os.environ.get("MYSQL_PASSWORD"),
+        'HOST': 'db',
+        'PORT': 3306,
     }
 }
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {

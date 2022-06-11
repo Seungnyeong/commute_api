@@ -1,0 +1,34 @@
+version: "3.7"
+services:
+  db:
+    platform: linux/x86_64
+    image: mysql:8.0
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_DATABASE=gate
+      - MYSQL_ROOT_PASSWORD=root-pass
+      - MYSQL_USER=gate-svc
+      - MYSQL_PASSWORD=order-pass
+      - TZ=UTC
+    command: # 명령어 실행
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --lower_case_table_names=1
+    volumes:
+      - ./mysql:/var/lib/mysql
+  web:
+    build:  .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/code
+    ports:
+      - 8000:8000
+    environment:
+      - MYSQL_NAME=gate
+      - MYSQL_USER=gate-svc
+      - MYSQL_PASSWORD=order-pass
+      - SECRET_KEY=django-insecure-atj_3wa6+**qw027u7yw4srtpu0z#!qp5xj9x#1qoa@n&=2kc
+      - DEBUG=True
+    depends_on:
+      - db
