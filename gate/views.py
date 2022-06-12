@@ -4,16 +4,16 @@ from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_404_NOT_FO
     HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from .models import InOutRecord, Gate
 from django.db.models import Max
-
+from datetime import datetime
 
 # Create your views here.
 class GateAPIView(APIView):
-    authentication_classes = (TokenAuthentication, SessionAuthentication,)
+    authentication_classes = (TokenAuthentication, )
     permission_classes = (IsAuthenticated,)
 
     @swagger_auto_schema(
@@ -50,6 +50,8 @@ class GateAPIView(APIView):
 
 
 class GateDetailAPIView(APIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
 
     @swagger_auto_schema(
         request_body=GateSerializer(),
@@ -97,6 +99,8 @@ class GateDetailAPIView(APIView):
 
 
 class GateUserDetail(APIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
 
     @swagger_auto_schema(
         query_serializer=GateGetQuerySerializer,
@@ -117,3 +121,49 @@ class GateUserDetail(APIView):
                 })
         else:
             return Response(status=HTTP_400_BAD_REQUEST, data=serializer.errors)
+
+
+class TodayWorkTime(APIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+
+    @swagger_auto_schema(
+        operation_description="해당 토큰에서 인증 받은, 사용자의 실시간 근무시간 조회 API",
+        operation_summary="실시간 근무시간 조회",
+        deprecated=False,
+        tags=['실시간 근무시간 조회']
+    )
+    def get(self, request):
+        today = datetime.today()
+        gate = Gate.objects.get(pass_day=today, user_id=request.user.id)
+
+        last_tag = InOutRecord.objects.filter(
+          user_id=request.user.id
+        ).last().tag
+
+        if last_tag == "OUT":
+            return Response(data={
+                "real_work_time": gate.work_time
+            })
+        else:
+            last_in_date = InOutRecord.objects.filter(
+                user_id=request.user.id,
+                tag__exact="IN"
+            ).aggregate(Max('check_time')).get('check_time__max')
+
+            real_time_work_time = gate.work_time + int((today - last_in_date).seconds // 60)
+            return Response(data={
+                "real_work_time": real_time_work_time,
+            }, status=HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+

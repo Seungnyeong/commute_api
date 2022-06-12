@@ -5,7 +5,6 @@ import datetime
 
 class GateSerializer(serializers.ModelSerializer):
     user = RelatedUserSerializer(read_only=True)
-
     class Meta:
         fields = (
 
