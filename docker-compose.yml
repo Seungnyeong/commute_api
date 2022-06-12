@@ -16,12 +16,14 @@ services:
       - --collation-server=utf8mb4_unicode_ci
       - --lower_case_table_names=1
     volumes:
-      - ./mysql:/var/lib/mysql
+      - ./volumes/mysql:/var/lib/mysql
   web:
     build:  .
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/code
+    image: wanted_lab_web
+#    command: python manage.py runserver 0.0.0.0:8000
+    command : gunicorn --bind 0:8000 "config.wsgi:application"
+#    volumes:
+#      - .:/code
     ports:
       - 8000:8000
     environment:
@@ -31,4 +33,16 @@ services:
       - SECRET_KEY=django-insecure-atj_3wa6+**qw027u7yw4srtpu0z#!qp5xj9x#1qoa@n&=2kc
       - DEBUG=True
     depends_on:
+      - migration
       - db
+  migration:
+      image : wanted_lab_web
+      command: python3 manage.py migrate --noinput
+      volumes:
+        - .:/code
+      depends_on:
+        - db
+      environment:
+        - MYSQL_NAME=gate
+        - MYSQL_USER=gate-svc
+        - MYSQL_PASSWORD=order-pass

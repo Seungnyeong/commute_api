@@ -1,15 +1,16 @@
-import time
-
 from .serializers import GateSerializer, GateWebHookSerializer, GateGetQuerySerializer
 
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_403_FORBIDDEN, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_403_FORBIDDEN, \
+    HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
-from .models import InOutRecord , Gate
+from .models import InOutRecord, Gate
 from django.db.models import Max
+
+
 # Create your views here.
 class GateAPIView(APIView):
     authentication_classes = (TokenAuthentication, SessionAuthentication,)
@@ -28,20 +29,25 @@ class GateAPIView(APIView):
             gate = serializer.create_or_update()
             check_time = serializer.validated_data.get('check_time')
             if serializer.validated_data.get('tag') == "IN" and gate.out_date is not None:
-                gate.break_time = gate.break_time + int((check_time - gate.out_date ).seconds // 60)
-                gate.create_or_update()
+                gate.break_time = gate.break_time + int((check_time - gate.out_date).seconds // 60)
+                gate.save()
             elif serializer.validated_data.get('tag') == "OUT" and gate.in_date is not None:
                 last_in_date = InOutRecord.objects.filter(
                     user_id=serializer.validated_data.get('user_id'),
                     tag__exact="IN",
                 ).aggregate(Max('check_time')).get('check_time__max')
                 if last_in_date is not None:
-                    if time.strptime(last_in_date, "%Y%m%d") == time.strptime(check_time, "%Y%m%d"):
+                    if (
+                            last_in_date.year == check_time.year and
+                            last_in_date.month == check_time.month and
+                            last_in_date.day == check_time.day
+                    ):
                         gate.work_time = gate.work_time + int((check_time - last_in_date).seconds // 60)
-                        gate.create_or_update()
+                        gate.save()
             return Response(status=HTTP_201_CREATED)
         else:
             return Response(status=HTTP_400_BAD_REQUEST, data=serializer.errors)
+
 
 class GateDetailAPIView(APIView):
 
@@ -68,7 +74,9 @@ class GateDetailAPIView(APIView):
             else:
                 return Response(data=serializer.errors, status=HTTP_400_BAD_REQUEST)
         else:
-            return Response(status=HTTP_404_NOT_FOUND)
+            return Response(status=HTTP_404_NOT_FOUND, data={
+                "detail": "출근 기록이 없습니다."
+            })
 
     @swagger_auto_schema(
         operation_description="관리자 권한에 의하여, 삭제할 수 있음.",
@@ -87,6 +95,7 @@ class GateDetailAPIView(APIView):
         else:
             return Response(status=HTTP_403_FORBIDDEN)
 
+
 class GateUserDetail(APIView):
 
     @swagger_auto_schema(
@@ -103,8 +112,8 @@ class GateUserDetail(APIView):
             if gate is not None:
                 return Response(status=HTTP_200_OK, data=GateSerializer(gate).data)
             else:
-                return Response(status=HTTP_404_NOT_FOUND)
+                return Response(status=HTTP_404_NOT_FOUND, data={
+                    "detail": "출근 기록이 없습니다."
+                })
         else:
             return Response(status=HTTP_400_BAD_REQUEST, data=serializer.errors)
-
-

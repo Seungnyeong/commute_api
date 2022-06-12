@@ -118,3 +118,4 @@ GitHub.sublime-settings
 ## Add igrnore
 .env.dev
 venv
+/volumes/*
