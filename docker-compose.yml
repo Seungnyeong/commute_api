@@ -20,8 +20,12 @@ services:
   web:
     build:  .
     image: wanted_lab_web
+    #로컬용 커맨드
     command: python manage.py runserver 0.0.0.0:8000
+    #배포용 커맨드
 #    command : gunicorn --bind 0:8000 "config.wsgi:application"
+
+    #로컬 볼륨
     volumes:
       - .:/code
     ports:

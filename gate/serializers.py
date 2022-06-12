@@ -24,9 +24,6 @@ class GateWebHookSerializer(serializers.Serializer):
     tag = serializers.CharField()
     check_time = serializers.DateTimeField()
 
-    def validate(self, data):
-        return data
-
     def create_or_update(self):
         try:
             gate = models.Gate.objects.get(user_id=self.validated_data.get('user_id'),

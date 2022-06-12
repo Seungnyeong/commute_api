@@ -11,9 +11,10 @@ from .models import InOutRecord, Gate
 from django.db.models import Max
 from datetime import datetime
 
+
 # Create your views here.
 class GateAPIView(APIView):
-    authentication_classes = (TokenAuthentication, )
+    authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     @swagger_auto_schema(
@@ -24,6 +25,7 @@ class GateAPIView(APIView):
         tags=['출퇴근 WebHook']
     )
     def post(self, request):
+        today = datetime.today()
         serializer = GateWebHookSerializer(data=request.data)
         if serializer.is_valid():
             gate = serializer.create_or_update()
@@ -35,6 +37,9 @@ class GateAPIView(APIView):
                 last_in_date = InOutRecord.objects.filter(
                     user_id=serializer.validated_data.get('user_id'),
                     tag__exact="IN",
+                    check_time__year=today.year,
+                    check_time__month=today.month,
+                    check_time__day=today.day
                 ).aggregate(Max('check_time')).get('check_time__max')
                 if last_in_date is not None:
                     if (
@@ -127,7 +132,6 @@ class TodayWorkTime(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
-
     @swagger_auto_schema(
         operation_description="해당 토큰에서 인증 받은, 사용자의 실시간 근무시간 조회 API",
         operation_summary="실시간 근무시간 조회",
@@ -136,34 +140,31 @@ class TodayWorkTime(APIView):
     )
     def get(self, request):
         today = datetime.today()
-        gate = Gate.objects.get(pass_day=today, user_id=request.user.id)
+        try:
+            gate = Gate.objects.get(pass_day=today, user_id=request.user.id)
 
-        last_tag = InOutRecord.objects.filter(
-          user_id=request.user.id
-        ).last().tag
-
-        if last_tag == "OUT":
-            return Response(data={
-                "real_work_time": gate.work_time
-            })
-        else:
-            last_in_date = InOutRecord.objects.filter(
+            last_tag = InOutRecord.objects.filter(
                 user_id=request.user.id,
-                tag__exact="IN"
-            ).aggregate(Max('check_time')).get('check_time__max')
+                check_time__year=today.year,
+                check_time__month=today.month,
+                check_time__day=today.day
+            ).last().tag
 
-            real_time_work_time = gate.work_time + int((today - last_in_date).seconds // 60)
-            return Response(data={
-                "real_work_time": real_time_work_time,
-            }, status=HTTP_200_OK)
+            if last_tag == "OUT":
+                return Response(data={
+                    "real_work_time": gate.work_time
+                })
+            else:
+                last_in_date = InOutRecord.objects.filter(
+                    user_id=request.user.id,
+                    tag__exact="IN"
+                ).aggregate(Max('check_time')).get('check_time__max')
 
-
-
-
-
-
-
-
-
-
-
+                real_time_work_time = gate.work_time + int((today - last_in_date).seconds // 60)
+                return Response(data={
+                    "real_work_time": real_time_work_time,
+                }, status=HTTP_200_OK)
+        except Gate.DoesNotExist:
+            return Response(status=HTTP_404_NOT_FOUND)
+        except InOutRecord.DoesNotExist:
+            return Response(status=HTTP_404_NOT_FOUND)
