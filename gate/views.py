@@ -28,12 +28,21 @@ class GateAPIView(APIView):
         today = datetime.today()
         serializer = GateWebHookSerializer(data=request.data)
         if serializer.is_valid():
+            # 출근 오브젝트 생성 및, 출퇴근 기록 오브젝트 생성
             gate = serializer.create_or_update()
+
+            # 카드를 찍은 시간
             check_time = serializer.validated_data.get('check_time')
+
+            # 휴식 시간 저장
             if serializer.validated_data.get('tag') == "IN" and gate.out_date is not None:
                 gate.break_time = gate.break_time + int((check_time - gate.out_date).seconds // 60)
                 gate.save()
+
+            # 휴식시간 저장
             elif serializer.validated_data.get('tag') == "OUT" and gate.in_date is not None:
+
+                # 금일 날짜의, 최근 IN 태그를 가져온다. 사용자가 태그를 안찍을 수도 있기 때문에  금일날짜를 넣는다.
                 last_in_date = InOutRecord.objects.filter(
                     user_id=serializer.validated_data.get('user_id'),
                     tag__exact="IN",
@@ -47,6 +56,7 @@ class GateAPIView(APIView):
                             last_in_date.month == check_time.month and
                             last_in_date.day == check_time.day
                     ):
+                        # 휴식시간 저장
                         gate.work_time = gate.work_time + int((check_time - last_in_date).seconds // 60)
                         gate.save()
             return Response(status=HTTP_201_CREATED)
@@ -72,6 +82,8 @@ class GateDetailAPIView(APIView):
             gate = None
 
         if gate is not None:
+
+            # 부분적으로 수정 가능
             serializer = GateSerializer(
                 gate, data=request.data, partial=True
             )
@@ -93,8 +105,10 @@ class GateDetailAPIView(APIView):
     )
     def delete(self, request, id):
 
+        # 관리자 일 경우
         if request.user.is_superuser:
             try:
+                # 해당 ID 삭제
                 Gate.objects.get(id=id).delete()
                 return Response(status=HTTP_204_NO_CONTENT)
             except Gate.DoesNotExist:
@@ -139,10 +153,12 @@ class TodayWorkTime(APIView):
         tags=['실시간 근무시간 조회']
     )
     def get(self, request):
+        # 태그를 안 찍는 경우도 있기 때문에, 금일 기준으로 마지막 TAG를 가져오기 위함
         today = datetime.today()
         try:
             gate = Gate.objects.get(pass_day=today, user_id=request.user.id)
 
+            # 마지막 save된 tag명 가져오기
             last_tag = InOutRecord.objects.filter(
                 user_id=request.user.id,
                 check_time__year=today.year,
@@ -150,16 +166,18 @@ class TodayWorkTime(APIView):
                 check_time__day=today.day
             ).last().tag
 
+            # 퇴근을 찍고, 실시간 근무시간을 확인할 경우, 저장된 근무시간만을 보여준다.
             if last_tag == "OUT":
                 return Response(data={
                     "real_work_time": gate.work_time
                 })
+            # 출근을 경우, 현재시간에서, 마지막 저장된 출근의 차이와 기존의 근무시간을 더해준다.
             else:
                 last_in_date = InOutRecord.objects.filter(
                     user_id=request.user.id,
                     tag__exact="IN"
                 ).aggregate(Max('check_time')).get('check_time__max')
-
+                # 분 단위로 리턴
                 real_time_work_time = gate.work_time + int((today - last_in_date).seconds // 60)
                 return Response(data={
                     "real_work_time": real_time_work_time,

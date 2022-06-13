@@ -94,6 +94,8 @@ class GateWebHookAPITestCase(TestCase):
         }, **header)
 
         self.assertEqual(in_response.status_code, status.HTTP_201_CREATED)
+
+        # 실시간 근무시간 조회
         real_work_time_response = self.client.get("/gate/api/v1/today/", **header)
         self.assertEqual(real_work_time_response.status_code, status.HTTP_200_OK)
         self.assertEqual(real_work_time_response.data.get('real_work_time'), 18)
